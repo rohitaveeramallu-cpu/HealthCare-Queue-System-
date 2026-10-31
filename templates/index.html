@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Healthcare Queue Management</title>
+<style>
+  :root { color-scheme: light; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { font-family: Arial, sans-serif; background: #ffffff; color: #222; margin: 0; padding: 15px; }
+  h1 { background: #2e7d32; color: #fff; padding: 14px; margin: 0 0 15px 0; font-size: 22px; text-align: center; }
+  h2 { color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 4px; font-size: 18px; }
+  .box { border: 1px solid #2e7d32; padding: 12px; margin-bottom: 15px; background: #f1f8f1; }
+  label { display: inline-block; margin: 4px 8px 4px 0; }
+  input, select { padding: 5px; border: 1px solid #2e7d32; margin-right: 8px; }
+  button { background: #2e7d32; color: #fff; border: none; padding: 6px 12px; cursor: pointer; }
+  button:hover { background: #1b5e20; }
+  button.red { background: #c62828; }
+  button.red:hover { background: #8e0000; }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  th, td { border: 1px solid #2e7d32; padding: 6px; text-align: left; font-size: 14px; }
+  th { background: #c8e6c9; }
+  .msg { color: #1b5e20; font-weight: bold; margin-top: 8px; }
+  .err { color: #c62828; font-weight: bold; margin-top: 8px; }
+  .nav { display: flex; gap: 8px; align-items: center; margin-bottom: 15px; flex-wrap: wrap; }
+  .nav span { margin-left: auto; font-size: 14px; }
+  .login { max-width: 340px; margin: 60px auto; }
+  .login input { width: 100%; box-sizing: border-box; margin: 0 0 10px 0; }
+  .login button { width: 100%; }
+  .hidden { display: none; }
+  .nav button { background: #fff; color: #2e7d32; border: 1px solid #2e7d32; }
+  .nav button.active { background: #2e7d32; color: #fff; }
+  .nav button.red { background: #c62828; color: #fff; border-color: #c62828; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .tabs button { flex: 1; background: #fff; color: #2e7d32; border: 1px solid #2e7d32; }
+  .tabs button.on { background: #2e7d32; color: #fff; }
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+  .stat { flex: 1; min-width: 130px; background: #f1f8f1; border: 1px solid #2e7d32; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 26px; color: #2e7d32; }
+  .fgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .fgrid label { display: block; margin: 0; }
+  .fgrid input, .fgrid select { width: 100%; box-sizing: border-box; margin: 3px 0 0 0; }
+  .tv { background: #0b3d1e; color: #fff; padding: 18px; min-height: 60vh; }
+  .tv-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #66bb6a; padding-bottom: 10px; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+  .tv-head h2 { color: #fff; border: 0; font-size: 28px; margin: 0; }
+  .tv-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .tv-card { background: #14532d; border: 2px solid #66bb6a; padding: 16px; text-align: center; }
+  .tv-card.off { opacity: .45; }
+  .tv-doc { font-size: 22px; font-weight: bold; }
+  .tv-doc small { display: block; font-size: 14px; color: #a5d6a7; font-weight: normal; }
+  .tv-label { margin-top: 12px; font-size: 13px; letter-spacing: 2px; color: #a5d6a7; }
+  .tv-token { font-size: 56px; font-weight: bold; color: #fff176; line-height: 1.1; }
+  .tv-next { font-size: 30px; font-weight: bold; }
+  .tv-up span { display: inline-block; background: #0b3d1e; border: 1px solid #66bb6a; padding: 3px 9px; margin: 3px; }
+  .tv-off { margin-top: 20px; font-size: 20px; }
+  .card { border: 1px solid #2e7d32; background: #fff; padding: 10px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN PAGE ============ -->
+<div id="loginPage" class="hidden">
+  <h1 class="hospName">Healthcare Queue Management</h1>
+  <div class="box login">
+    <div class="tabs">
+      <button id="tabStaff" class="on" onclick="setLoginMode('staff')">Staff Login</button>
+      <button id="tabDoctor" onclick="setLoginMode('doctor')">Doctor Login</button>
+    </div>
+    <label>Username</label>
+    <input type="text" id="lUser" autocomplete="username">
+    <label>Password</label>
+    <input type="password" id="lPass" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()">Login</button>
+    <div class="err" id="lErr"></div>
+    <p style="font-size:12px;color:#555" id="lHint">Demo: admin / admin123</p>
+  </div>
+</div>
+
+<!-- ============ APP (HOME + SETTINGS) ============ -->
+<div id="appPage" class="hidden">
+  <h1 class="hospName">Healthcare Queue Management</h1>
+
+  <div class="nav">
+    <button id="nav-home" class="staff" onclick="showPage('home')">Home</button>
+    <button id="nav-board" class="staff" onclick="showPage('board')">Display Board</button>
+    <button id="nav-doctors" class="staff" onclick="showPage('doctors')">Doctors</button>
+    <button id="nav-history" class="staff" onclick="showPage('history')">Queue History</button>
+    <button id="nav-settings" class="staff" onclick="showPage('settings')">Settings</button>
+    <button id="nav-mine" class="docOnly" onclick="showPage('mine')">My Patients</button>
+    <span>Logged in as <b id="who"></b></span>
+    <button class="red" onclick="logout()">Logout</button>
+  </div>
+
+  <!-- ===== HOME ===== -->
+  <div id="homePage" class="page">
+    <div class="stats">
+      <div class="stat"><b id="stWait">0</b>Waiting</div>
+      <div class="stat"><b id="stProg">0</b>In Progress</div>
+      <div class="stat"><b id="stDone">0</b>Completed today</div>
+      <div class="stat"><b id="stDocs">0</b>Doctors available</div>
+    </div>
+
+    <h2>Register Patient / Generate Token</h2>
+    <div class="box">
+      <div class="fgrid">
+        <label>Name <input type="text" id="pname"></label>
+        <label>Age <input type="number" id="page" min="0" max="120"></label>
+        <label>Gender
+          <select id="pgender"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+        </label>
+        <label>Phone <input type="text" id="pphone" maxlength="10" placeholder="10 digits"></label>
+        <label>Department <select id="pdept" onchange="fillDoctors()"></select></label>
+        <label>Doctor <select id="pdoctor"></select></label>
+        <label>Type <select id="ptype"><option>Walk-in</option><option>Appointment</option></select></label>
+        <label>Reason for visit <input type="text" id="preason" maxlength="200" placeholder="e.g. fever, check-up"></label>
+      </div>
+      <p><button onclick="addPatient()">Generate Token</button></p>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <h2>Current Queues</h2>
+    <div class="box" id="queueArea"></div>
+  </div>
+
+  <!-- ===== DISPLAY BOARD ===== -->
+  <div id="boardPage" class="page hidden">
+    <p><button onclick="goFullscreen()">Full Screen (TV mode)</button></p>
+    <div class="tv" id="tvScreen">
+      <div class="tv-head">
+        <h2 class="hospName">Healthcare Queue Management</h2>
+        <div style="text-align:right"><div id="tvClock" style="font-size:26px;font-weight:bold"></div><div id="tvDate" style="color:#a5d6a7"></div></div>
+      </div>
+      <div class="tv-grid" id="boardGrid"></div>
+    </div>
+  </div>
+
+  <!-- ===== DOCTORS ===== -->
+  <div id="doctorsPage" class="page hidden">
+    <h2>Doctors</h2>
+    <div class="box wrap">
+      <table>
+        <thead><tr><th>Doctor</th><th>Department</th><th>Username</th><th>Avg time / patient (min)</th><th>Status</th><th>Change</th></tr></thead>
+        <tbody id="doctorRows"></tbody>
+      </table>
+    </div>
+    <h2>Add Doctor</h2>
+    <div class="box">
+      <div class="fgrid">
+        <label>Name <input type="text" id="nDocName"></label>
+        <label>Department <input type="text" id="nDocDept"></label>
+        <label>Username <input type="text" id="nDocUser"></label>
+        <label>Password <input type="password" id="nDocPass"></label>
+        <label>Avg time (min) <input type="number" id="nDocAvg" min="1"></label>
+      </div>
+      <p><button onclick="addDoctor()">Add Doctor</button></p>
+      <div class="msg" id="sDocMsg"></div>
+    </div>
+  </div>
+
+  <!-- ===== QUEUE HISTORY ===== -->
+  <div id="historyPage" class="page hidden">
+    <h2>Queue History (today)</h2>
+    <div class="box wrap">
+      <table>
+        <thead><tr><th>Token</th><th>Patient</th><th>Age</th><th>Gender</th><th>Phone</th><th>Doctor</th><th>Reason</th><th>Type</th><th>Registered</th><th>Completed</th><th>Status</th></tr></thead>
+        <tbody id="historyRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== SETTINGS ===== -->
+  <div id="settingsPage" class="page hidden">
+    <h2>Hospital / Clinic Name</h2>
+    <div class="box">
+      <input type="text" id="sHosp" style="width:260px">
+      <button onclick="saveHosp()">Save</button>
+      <div class="msg" id="sHospMsg"></div>
+    </div>
+    <h2>Change Staff Password</h2>
+    <div class="box">
+      <label>Current: <input type="password" id="oldPass"></label>
+      <label>New: <input type="password" id="newPass"></label>
+      <button onclick="changePass()">Change</button>
+      <div class="msg" id="sPassMsg"></div>
+    </div>
+    <h2>Data</h2>
+    <div class="box">
+      <button class="red" onclick="clearQueue()">Clear current queue</button>
+      <button class="red" onclick="clearHistory()">Clear queue history</button>
+      <div class="msg" id="sDataMsg"></div>
+    </div>
+  </div>
+
+  <!-- ===== DOCTOR PORTAL ===== -->
+  <div id="minePage" class="page hidden">
+    <div id="mineArea"></div>
+  </div>
+</div>
+
+<script>
+let doctors = [], queueHistory = [], settings = {hosp:"Healthcare Queue Management"};
+let role = "", myDocId = 0, loggedIn = "", loginMode = "staff";
+const el = id => document.getElementById(id);
+const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+async function api(url, method="GET", body=null) {
+  const options = {method, headers:{"Content-Type":"application/json"}};
+  if (body !== null) options.body = JSON.stringify(body);
+  const response = await fetch(url, options);
+  const data = await response.json().catch(()=>({}));
+  if (!response.ok) throw new Error(data.error || "Request failed.");
+  return data;
+}
+function message(id, text, error=false) { if(el(id)){el(id).className=error?"err":"msg";el(id).innerText=text;} }
+function applyHospName() {
+  document.querySelectorAll(".hospName").forEach(x=>x.innerText=settings.hosp);
+  document.title=settings.hosp;
+}
+function setLoginMode(mode) {
+  loginMode=mode;
+  el("tabStaff").classList.toggle("on",mode==="staff");
+  el("tabDoctor").classList.toggle("on",mode==="doctor");
+  el("lHint").innerText=mode==="staff"?"Staff demo login: admin / admin123":"Use the doctor username and password assigned by staff.";
+  el("lErr").innerText="";
+}
+async function login() {
+  try {
+    const data=await api("/api/login","POST",{mode:loginMode,username:el("lUser").value.trim(),password:el("lPass").value});
+    role=data.role; myDocId=data.doctor_id||0; loggedIn=data.name;
+    el("lUser").value="";el("lPass").value="";el("lErr").innerText="";
+    await loadData();showApp();
+  } catch(e){message("lErr",e.message,true);}
+}
+async function logout(){
+  try{await api("/api/logout","POST",{});}catch(e){}
+  role="";myDocId=0;loggedIn="";doctors=[];queueHistory=[];showApp();
+}
+function showApp(){
+  applyHospName();
+  if(loggedIn){
+    el("loginPage").classList.add("hidden");el("appPage").classList.remove("hidden");
+    el("who").innerText=loggedIn+(role==="doctor"?" (Doctor)":" (Staff)");
+    document.querySelectorAll(".nav .staff").forEach(x=>x.classList.toggle("hidden",role!=="staff"));
+    el("nav-mine").classList.toggle("hidden",role!=="doctor");
+    showPage(role==="doctor"?"mine":"home");
+  }else{el("appPage").classList.add("hidden");el("loginPage").classList.remove("hidden");}
+}
+function showPage(page){
+  if((page==="mine")!==(role==="doctor"))page=role==="doctor"?"mine":"home";
+  ["home","board","doctors","history","settings","mine"].forEach(p=>{
+    el(p+"Page").classList.toggle("hidden",p!==page);
+    el("nav-"+p).classList.toggle("active",p===page);
+  });
+  if(page==="settings")el("sHosp").value=settings.hosp;
+  render();
+}
+function getDoctor(id){return doctors.find(d=>Number(d.id)===Number(id));}
+function showTime(value){return value?new Date(value).toLocaleTimeString():"-";}
+function estimateWait(doc,pos){
+  let ahead=queueHistory.filter(t=>Number(t.doctor_id)===Number(doc.id)&&t.status==="Waiting");
+  let current=queueHistory.find(t=>Number(t.doctor_id)===Number(doc.id)&&t.status==="In Progress");
+  let wait=pos*Number(doc.avg);
+  if(current&&current.started_at){let used=Math.floor((Date.now()-new Date(current.started_at).getTime())/60000);wait+=Math.max(1,Number(doc.avg)-used);}
+  return wait;
+}
+async function loadData(){
+  const [d,t]=await Promise.all([api("/api/doctors"),api("/api/tokens")]);
+  doctors=d;queueHistory=t;
+  render();
+}
+async function toggleDoctor(id){
+  const d=getDoctor(id);try{await api("/api/doctors/"+id,"PUT",{available:!Boolean(d.available)});await loadData();}catch(e){alert(e.message);}
+}
+async function addPatient(){
+  const data={name:el("pname").value.trim(),age:el("page").value,gender:el("pgender").value,
+    phone:el("pphone").value.trim(),doctor_id:el("pdoctor").value,type:el("ptype").value,reason:el("preason").value.trim()};
+  if(!/^[A-Za-z][A-Za-z .]{1,49}$/.test(data.name)){message("msg","Enter a valid name (2-50 letters).",true);return;}
+  if(!/^\d{1,3}$/.test(data.age)||Number(data.age)>120){message("msg","Enter a valid age (0-120).",true);return;}
+  if(!data.gender){message("msg","Select gender.",true);return;}
+  if(!/^[6-9]\d{9}$/.test(data.phone)){message("msg","Enter a valid 10-digit phone number.",true);return;}
+  if(!data.doctor_id){message("msg","Select an available doctor.",true);return;}
+  if(data.reason.length<3){message("msg","Enter reason for visit (at least 3 characters).",true);return;}
+  try{
+    const result=await api("/api/tokens","POST",data);
+    message("msg","Token generated: "+result.token_no);
+    ["pname","page","pphone","preason"].forEach(id=>el(id).value="");el("pgender").value="";
+    await loadData();
+  }catch(e){message("msg",e.message,true);}
+}
+async function callNext(docId){
+  if(role==="doctor"&&Number(docId)!==Number(myDocId))return;
+  const t=queueHistory.find(x=>Number(x.doctor_id)===Number(docId)&&x.status==="Waiting");
+  if(!t){alert("No patients waiting.");return;}
+  if(queueHistory.some(x=>Number(x.doctor_id)===Number(docId)&&x.status==="In Progress")){alert("Complete the current consultation first.");return;}
+  try{await api("/api/tokens/"+t.id+"/call","PUT",{});await loadData();}catch(e){alert(e.message);}
+}
+async function completeConsultation(docId){
+  if(role==="doctor"&&Number(docId)!==Number(myDocId))return;
+  const t=queueHistory.find(x=>Number(x.doctor_id)===Number(docId)&&x.status==="In Progress");
+  if(!t){alert("No consultation is in progress.");return;}
+  try{await api("/api/tokens/"+t.id+"/complete","PUT",{});await loadData();}catch(e){alert(e.message);}
+}
+async function updateAvg(id){
+  const avg=parseInt(el("avg"+id).value,10);
+  if(!avg||avg<1){message("sDocMsg","Enter a valid time.",true);return;}
+  try{await api("/api/doctors/"+id,"PUT",{avg});message("sDocMsg","Consultation time updated.");await loadData();}catch(e){message("sDocMsg",e.message,true);}
+}
+async function addDoctor(){
+  const data={name:el("nDocName").value.trim(),dept:el("nDocDept").value.trim(),user:el("nDocUser").value.trim(),pass:el("nDocPass").value,avg:parseInt(el("nDocAvg").value,10)};
+  try{
+    await api("/api/doctors","POST",data);
+    ["nDocName","nDocDept","nDocUser","nDocPass","nDocAvg"].forEach(id=>el(id).value="");
+    message("sDocMsg","Doctor added. Give the doctor their username and password securely.");
+    await loadData();
+  }catch(e){message("sDocMsg",e.message,true);}
+}
+async function saveHosp(){
+  try{const r=await api("/api/settings/hospital","PUT",{name:el("sHosp").value.trim()});settings.hosp=r.name;applyHospName();message("sHospMsg","Saved.");}
+  catch(e){message("sHospMsg",e.message,true);}
+}
+async function changePass(){
+  const old_password=el("oldPass").value,new_password=el("newPass").value;
+  try{const r=await api("/api/staff/password","PUT",{old_password,new_password});message("sPassMsg",r.message);el("oldPass").value="";el("newPass").value="";}
+  catch(e){message("sPassMsg",e.message,true);}
+}
+async function clearQueue(){
+  if(!confirm("Cancel all waiting and in-progress patients?"))return;
+  try{await api("/api/queue/clear","DELETE");message("sDataMsg","Queue cleared.");await loadData();}catch(e){message("sDataMsg",e.message,true);}
+}
+async function clearHistory(){
+  if(!confirm("Permanently delete completed and cancelled history?"))return;
+  try{await api("/api/history/clear","DELETE");message("sDataMsg","History cleared.");await loadData();}catch(e){message("sDataMsg",e.message,true);}
+}
+function goFullscreen(){const b=el("tvScreen");if(b.requestFullscreen)b.requestFullscreen();}
+function fillRegForm(){
+  const deptSel=el("pdept"),old=deptSel.value;
+  const depts=[...new Set(doctors.filter(d=>d.available).map(d=>d.dept))];
+  deptSel.innerHTML=depts.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join("");
+  if(depts.includes(old))deptSel.value=old;
+  fillDoctors();
+}
+function fillDoctors(){
+  const dept=el("pdept").value,sel=el("pdoctor"),old=sel.value;
+  const list=doctors.filter(d=>d.available&&d.dept===dept);
+  sel.innerHTML=list.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
+  if(list.some(d=>String(d.id)===old))sel.value=old;
+}
+function waitingTable(d){
+  const waiting=queueHistory.filter(t=>Number(t.doctor_id)===Number(d.id)&&t.status==="Waiting");
+  let h="<div class='wrap'><table><thead><tr><th>Token</th><th>Patient</th><th>Age</th><th>Gender</th><th>Phone</th><th>Reason</th><th>Type</th><th>Status</th><th>Estimated Waiting Time</th></tr></thead><tbody>";
+  if(!waiting.length)h+="<tr><td colspan='9'>No patients waiting.</td></tr>";
+  waiting.forEach((t,i)=>h+=`<tr><td>${esc(t.token_no)}</td><td>${esc(t.patient_name)}</td><td>${t.age}</td><td>${esc(t.gender||"-")}</td><td>${esc(t.phone)}</td><td>${esc(t.reason||"-")}</td><td>${esc(t.patient_type)}</td><td>${esc(t.status)}</td><td>${estimateWait(d,i)} min</td></tr>`);
+  return h+"</tbody></table></div>";
+}
+function renderQueues(){
+  let h="";
+  doctors.forEach(d=>{
+    const current=queueHistory.find(t=>Number(t.doctor_id)===Number(d.id)&&t.status==="In Progress");
+    h+=`<h3 style="color:#2e7d32;margin:10px 0 6px">${esc(d.name)} (${esc(d.dept)}) - ${d.available?"Available":"Not Available"}</h3>`;
+    h+=`<p><b>In Progress:</b> ${current?esc(current.token_no)+" - "+esc(current.patient_name)+" (started "+showTime(current.started_at)+")":"None"}</p>`;
+    h+=waitingTable(d);
+    if(role==="staff"||Number(myDocId)===Number(d.id))h+=`<p><button onclick="callNext(${d.id})">Call Next Patient</button> <button onclick="completeConsultation(${d.id})">Complete Consultation</button></p>`;
+  });
+  el("queueArea").innerHTML=h;
+}
+function renderBoard(){
+  if(el("boardPage").classList.contains("hidden"))return;
+  let h="";
+  doctors.forEach(d=>{
+    const active=queueHistory.find(t=>Number(t.doctor_id)===Number(d.id)&&t.status==="In Progress");
+    const waiting=queueHistory.filter(t=>Number(t.doctor_id)===Number(d.id)&&t.status==="Waiting");
+    h+=`<div class="tv-card${d.available?"":" off"}"><div class="tv-doc">${esc(d.name)}<small>${esc(d.dept)}</small></div>`;
+    if(!d.available)h+="<div class='tv-off'>Not available</div>";
+    else{
+      h+=`<div class="tv-label">NOW SERVING</div><div class="tv-token">${active?esc(active.token_no):"--"}</div>`;
+      h+=`<div class="tv-label">NEXT</div><div class="tv-next">${waiting[0]?esc(waiting[0].token_no):"--"}</div><div class="tv-label">UPCOMING</div><div class="tv-up">`;
+      const up=waiting.slice(1,7);h+=up.length?up.map(t=>`<span>${esc(t.token_no)}</span>`).join(""):"<span>None</span>";h+="</div>";
+    }h+="</div>";
+  });
+  el("boardGrid").innerHTML=h;el("tvClock").textContent=new Date().toLocaleTimeString();el("tvDate").textContent=new Date().toDateString();
+}
+function renderMine(){
+  if(role!=="doctor")return;
+  const d=getDoctor(myDocId);if(!d)return;
+  const active=queueHistory.find(t=>Number(t.doctor_id)===Number(d.id)&&t.status==="In Progress");
+  let h=`<h2>${esc(d.name)} - ${esc(d.dept)}</h2><div class="box"><b>In Progress:</b> `;
+  h+=active?`${esc(active.token_no)} - ${esc(active.patient_name)}, ${active.age} yrs, ${esc(active.gender||"-")}, ${esc(active.phone)}<br>Reason: ${esc(active.reason||"-")} (started ${showTime(active.started_at)})`:"None";
+  h+=`<p><button onclick="callNext(${d.id})">Call Next Patient</button> <button onclick="completeConsultation(${d.id})">Complete Consultation</button></p></div><h2>Waiting Patients</h2><div class="box">${waitingTable(d)}</div>`;
+  h+="<h2>Completed Today</h2><div class='box wrap'><table><thead><tr><th>Token</th><th>Patient</th><th>Age</th><th>Gender</th><th>Phone</th><th>Reason</th><th>Completed</th></tr></thead><tbody>";
+  const done=queueHistory.filter(t=>Number(t.doctor_id)===Number(d.id)&&t.status==="Completed");
+  done.forEach(t=>h+=`<tr><td>${esc(t.token_no)}</td><td>${esc(t.patient_name)}</td><td>${t.age}</td><td>${esc(t.gender||"-")}</td><td>${esc(t.phone)}</td><td>${esc(t.reason||"-")}</td><td>${showTime(t.completed_at)}</td></tr>`);
+  if(!done.length)h+="<tr><td colspan='7'>None yet.</td></tr>";
+  el("mineArea").innerHTML=h+"</tbody></table></div>";
+}
+function render(){
+  if(!el("appPage")||el("appPage").classList.contains("hidden"))return;
+  let waiting=queueHistory.filter(t=>t.status==="Waiting").length;
+  let progress=queueHistory.filter(t=>t.status==="In Progress").length;
+  let completed=queueHistory.filter(t=>t.status==="Completed").length;
+  el("stWait").innerText=waiting;el("stProg").innerText=progress;el("stDone").innerText=completed;
+  el("stDocs").innerText=doctors.filter(d=>d.available).length;
+  let rows="";
+  doctors.forEach(d=>rows+=`<tr><td>${esc(d.name)}</td><td>${esc(d.dept)}</td><td>${esc(d.username||"")}</td><td><input type="number" min="1" id="avg${d.id}" value="${d.avg}" style="width:70px"> <button onclick="updateAvg(${d.id})">Update</button></td><td>${d.available?"Available":"Not Available"}</td><td><button onclick="toggleDoctor(${d.id})">${d.available?"Mark Unavailable":"Mark Available"}</button></td></tr>`);
+  el("doctorRows").innerHTML=rows;
+  fillRegForm();renderQueues();renderBoard();renderMine();
+  rows="";
+  queueHistory.forEach(t=>{const d=getDoctor(t.doctor_id);rows+=`<tr><td>${esc(t.token_no)}</td><td>${esc(t.patient_name)}</td><td>${t.age}</td><td>${esc(t.gender||"-")}</td><td>${esc(t.phone)}</td><td>${esc(d?d.name:t.doctor_name||"-")}</td><td>${esc(t.reason||"-")}</td><td>${esc(t.patient_type)}</td><td>${showTime(t.registered_at)}</td><td>${showTime(t.completed_at)}</td><td>${esc(t.status)}</td></tr>`;});
+  el("historyRows").innerHTML=rows||"<tr><td colspan='11'>No history yet.</td></tr>";
+}
+async function init(){
+  try{
+    const s=await api("/api/session");
+    if(s.logged_in){role=s.role;myDocId=s.doctor_id||0;loggedIn=s.name;await loadData();showApp();}
+    else showApp();
+  }catch(e){showApp();message("lErr","Could not connect to Flask. Start app.py and refresh.",true);}
+}
+el("pdept").addEventListener("change",fillDoctors);
+setInterval(()=>{if(loggedIn){loadData().catch(()=>{});}},10000);
+setInterval(renderBoard,1000);
+init();
+</script>
+
+</body>
+</html>
